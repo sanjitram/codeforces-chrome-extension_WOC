@@ -156,44 +156,57 @@ function monitorContestStart(startTime, roomId) {
 //   }, 5000); // Check every 5 seconds
 // }
 
+// Function to monitor the friend's progress
 function monitorFriendProgress(friendId, problemId, roomId) {
-    const submissionsUrl = `https://codeforces.com/submissions/${friendId}`;
-  
-    setInterval(() => {
-      fetch(submissionsUrl)
-        .then((response) => response.text())
-        .then((html) => {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, "text/html");
-  
-          const rows = doc.querySelectorAll(".status-frame-datatable tr");
-          let solved = false;
-  
-          for (const row of rows) {
-            const problemLink = row.querySelector("a[href*='/problem/']");
-            const verdict = row.querySelector(".submissionVerdictWrapper");
-  
-            console.log("Problem Link:", problemLink?.getAttribute("href"));
-            console.log("Verdict:", verdict?.innerText);
-  
-            if (
-              problemLink &&
-              problemLink.getAttribute("href").includes(problemId) &&
-              verdict &&
-              verdict.innerText.trim().toLowerCase().includes("accepted")
-            ) {
-              solved = true;
-              break;
-            }
-          }
-  
-          if (solved) {
-            console.log(`${friendId} has solved the problem in room ID: ${roomId}!`);
-          }
-        })
-        .catch((err) => console.error("Error fetching submissions:", err));
-    }, 30000);
-  }
+  const submissionsUrl = `https://codeforces.com/submissions/${friendId}`;
+
+  // Poll the submissions page every 30 seconds
+  setInterval(() => {
+    fetch(submissionsUrl)
+      .then((response) => response.text())
+      .then((html) => {
+        // Parse the HTML response
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+
+        // Locate the submissions table
+        const table = doc.querySelector(".status-frame-datatable");
+
+        if (!table) {
+          console.error("Submissions table not found!");
+          return;
+        }
+
+        // Locate the first row of submissions (excluding header row)
+        const firstRow = table.querySelector("tr[data-submission-id]");
+        if (!firstRow) {
+          console.log("No submissions found.");
+          return;
+        }
+
+        // Extract the problem link and verdict
+        const problemLink = firstRow.querySelector("a[href*='/problem/']");
+        const verdictElement = firstRow.querySelector(".status-verdict-cell .verdict-accepted");
+
+        // Check if the problem matches the target and the verdict is "Accepted"
+        if (
+          problemLink &&
+          problemLink.getAttribute("href").includes(`/problem/${problemId.slice(-1)}`) && // Match problem letter
+          problemLink.getAttribute("href").includes(`/contest/${problemId.slice(0, -1)}`) && // Match contest ID
+          verdictElement
+        ) {
+          sendAlert(`${friendId} has solved the problem ${problemId} in room ID: ${roomId}!`);
+        }
+      })
+      .catch((err) => console.error("Error fetching submissions:", err));
+  }, 30000); // Check every 30 seconds
+}
+
+// Utility function to send an alert
+function sendAlert(message) {
+  alert(message);
+}
+
   
 
 // Monitor Contest End
