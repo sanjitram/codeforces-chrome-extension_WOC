@@ -1,6 +1,6 @@
-// Add Challenge Button to Codeforces Problem Page
-
 console.log("content.js loaded!");
+
+// Add Challenge Button
 function addChallengeButton() {
   const button = document.createElement("button");
   button.innerText = "Challenge a Friend";
@@ -10,6 +10,16 @@ function addChallengeButton() {
   button.addEventListener("click", createChallenge);
   document.body.appendChild(button);
   console.log("Challenge button added!");
+
+  // Add 'Join Challenge' Button
+  const joinButton = document.createElement("button");
+  joinButton.innerText = "Join Challenge";
+  joinButton.style.cssText =
+    "position: fixed; top: 50px; right: 10px; padding: 10px 20px; background: #e74c3c; color: #fff; border: none; border-radius: 5px; cursor: pointer;";
+
+  joinButton.addEventListener("click", joinChallenge);
+  document.body.appendChild(joinButton);
+  console.log("Join button added!");
 }
 
 // Generate Room ID
@@ -73,9 +83,8 @@ function createChallenge() {
   localStorage.setItem("challengeDetails", JSON.stringify(challengeDetails));
 
   console.log("Before alert");
-alert(`Challenge created! Room ID: ${roomId}`);
-console.log("After alert");
-
+  alert(`Challenge created! Room ID: ${roomId}`);
+  console.log("After alert");
 
   // Start monitoring the contest
   console.log("Monitoring contest start...");
@@ -106,62 +115,18 @@ function monitorContestStart(startTime, roomId) {
   }
 }
 
-// Monitor Friend's Progress
-// function monitorFriendProgress(friendId, problemId, roomId) {
-//   // Construct the URL for the friend's submissions page
-//   const submissionsUrl = `https://codeforces.com/submissions/${friendId}`;
-
-//   // Set an interval to periodically check the submissions
-//   setInterval(() => {
-//     // Fetch the HTML content of the submissions page
-//     fetch(submissionsUrl)
-//       .then((response) => response.text())
-//       .then((html) => {
-//         // Parse the fetched HTML content
-//         const parser = new DOMParser();
-//         const doc = parser.parseFromString(html, "text/html");
-
-//         // Get all the rows in the submissions table
-//         const rows = doc.querySelectorAll(".status-frame-datatable tr");
-
-//         // Initialize a flag to check if the problem has been solved
-//         let solved = false;
-
-//         // Iterate through each row in the table to check for the problem's submission
-//         rows.forEach((row) => {
-//           // Find the link to the problem in the row
-//           const problemLink = row.querySelector("a[href*='/problem/']");
-//           // Find the verdict cell in the row
-//           const verdict = row.querySelector(".submissionVerdictWrapper");
-
-//           // Check if the row contains the correct problem and if the verdict is "Accepted"
-//           if (
-//             problemLink &&
-//             problemLink.getAttribute("href").includes(problemId) &&
-//             verdict &&
-//             verdict.innerText.includes("Accepted")
-//           ) {
-//             solved = true; // Mark the problem as solved
-//           }
-//         });
-
-//         // If the problem is solved, send an alert
-//         if (solved) {
-//           sendAlert(
-//             `${friendId} has solved the problem in room ID: ${roomId}!`
-//           );
-//         }
-//       })
-//       .catch((err) => console.error("Error fetching submissions:", err)); // Handle fetch errors
-//   }, 5000); // Check every 5 seconds
-// }
-
 // Function to monitor the friend's progress
 function monitorFriendProgress(friendId, problemId, roomId) {
   const submissionsUrl = `https://codeforces.com/submissions/${friendId}`;
+  let alertSent = false; // Track whether the alert has been sent
 
   // Poll the submissions page every 30 seconds
-  setInterval(() => {
+  const intervalId = setInterval(() => {
+    if (alertSent) {
+      clearInterval(intervalId); // Stop the interval if the alert has been sent
+      return;
+    }
+
     fetch(submissionsUrl)
       .then((response) => response.text())
       .then((html) => {
@@ -196,18 +161,12 @@ function monitorFriendProgress(friendId, problemId, roomId) {
           verdictElement
         ) {
           sendAlert(`${friendId} has solved the problem ${problemId} in room ID: ${roomId}!`);
+          alertSent = true; // Mark alert as sent
         }
       })
       .catch((err) => console.error("Error fetching submissions:", err));
-  }, 30000); // Check every 30 seconds
+  }, 3000); // Check every 30 seconds
 }
-
-// Utility function to send an alert
-function sendAlert(message) {
-  alert(message);
-}
-
-  
 
 // Monitor Contest End
 function monitorContestEnd(endTime, roomId) {
@@ -226,6 +185,80 @@ function monitorContestEnd(endTime, roomId) {
       }
     }, 1000); // Check every 1 second
   }
+}
+
+// Join Challenge Function
+function joinChallenge() {
+  const roomId = prompt("Enter the Room ID:");
+
+  // Validate the roomId format (example: "1234A_1735673400000_1735675200000_friendID_myID")
+  const roomIdPattern = /^\d+[A-Za-z]_\d{13}_\d{13}_[\w\d]+_[\w\d]+$/;
+
+  if (!roomIdPattern.test(roomId)) {
+    alert("Invalid Room ID format. Please enter a valid Room ID.");
+    return;
+  }
+
+  // Extract the problemId, startTime, endTime, and myId from the roomId
+  const [problemId, startTime, endTime, friendId, myId] = roomId.split('_');
+
+  // Navigate to the problem page on Codeforces
+  window.location.href = `https://codeforces.com/problemset/problem/${problemId.slice(0, -1)}/${problemId.slice(-1)}`;
+
+  // Monitor the contest start and end
+  monitorContestStart(parseInt(startTime), roomId);
+  monitorContestEnd(parseInt(endTime), roomId);
+
+  // Monitor the challenge creator's progress by checking if they have solved the problem
+  const creatorSubmissionsUrl = `https://codeforces.com/submissions/${myId}`;
+  let alertSent = false; // Track whether the alert has been sent
+
+  // Poll the submissions page every 30 seconds
+  const intervalId = setInterval(() => {
+    if (alertSent) {
+      clearInterval(intervalId); // Stop the interval if the alert has been sent
+      return;
+    }
+
+    fetch(creatorSubmissionsUrl)
+      .then((response) => response.text())
+      .then((html) => {
+        // Parse the HTML response
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+
+        // Locate the submissions table
+        const table = doc.querySelector(".status-frame-datatable");
+
+        if (!table) {
+          console.error("Submissions table not found!");
+          return;
+        }
+
+        // Locate the first row of submissions (excluding header row)
+        const firstRow = table.querySelector("tr[data-submission-id]");
+        if (!firstRow) {
+          console.log("No submissions found.");
+          return;
+        }
+
+        // Extract the problem link and verdict
+        const problemLink = firstRow.querySelector("a[href*='/problem/']");
+        const verdictElement = firstRow.querySelector(".status-verdict-cell .verdict-accepted");
+
+        // Check if the problem matches the target and the verdict is "Accepted"
+        if (
+          problemLink &&
+          problemLink.getAttribute("href").includes(`/problem/${problemId.slice(-1)}`) && // Match problem letter
+          problemLink.getAttribute("href").includes(`/contest/${problemId.slice(0, -1)}`) && // Match contest ID
+          verdictElement
+        ) {
+          sendAlert(`${myId} (the challenge creator) has solved the problem ${problemId} in room ID: ${roomId}!`);
+          alertSent = true; // Mark alert as sent
+        }
+      })
+      .catch((err) => console.error("Error fetching submissions:", err));
+  }, 3000); // Check every 30 seconds
 }
 
 // Initialize
