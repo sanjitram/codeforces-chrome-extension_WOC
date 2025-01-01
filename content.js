@@ -69,7 +69,7 @@ function createChallenge() {
   }
 
   const roomId = generateRoomId(problemId, startTime, endTime, friendId, myId);
-
+    
   const challengeDetails = {
     roomId,
     problemId,
@@ -165,7 +165,7 @@ function monitorFriendProgress(friendId, problemId, roomId) {
         }
       })
       .catch((err) => console.error("Error fetching submissions:", err));
-  }, 3000); // Check every 30 seconds
+  }, 3000); // Check every 3 seconds
 }
 
 // Monitor Contest End
@@ -199,67 +199,74 @@ function joinChallenge() {
     return;
   }
 
-  // Extract the problemId, startTime, endTime, and myId from the roomId
+  // Extract the problemId, startTime, endTime, friendId, and myId from the roomId
   const [problemId, startTime, endTime, friendId, myId] = roomId.split('_');
+
+  // Save the challenge details in localStorage
+  const challengeDetails = {
+    roomId,
+    problemId,
+    startTime: parseInt(startTime),
+    endTime: parseInt(endTime),
+    friendId,
+    myId,
+  };
+  localStorage.setItem("activeChallenge", JSON.stringify(challengeDetails));
 
   // Navigate to the problem page on Codeforces
   window.location.href = `https://codeforces.com/problemset/problem/${problemId.slice(0, -1)}/${problemId.slice(-1)}`;
-
-  // Monitor the contest start and end
-  monitorContestStart(parseInt(startTime), roomId);
-  monitorContestEnd(parseInt(endTime), roomId);
-
-  // Monitor the challenge creator's progress by checking if they have solved the problem
-  const creatorSubmissionsUrl = `https://codeforces.com/submissions/${myId}`;
-  let alertSent = false; // Track whether the alert has been sent
-
-  // Poll the submissions page every 30 seconds
-  const intervalId = setInterval(() => {
-    if (alertSent) {
-      clearInterval(intervalId); // Stop the interval if the alert has been sent
-      return;
-    }
-
-    fetch(creatorSubmissionsUrl)
-      .then((response) => response.text())
-      .then((html) => {
-        // Parse the HTML response
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-
-        // Locate the submissions table
-        const table = doc.querySelector(".status-frame-datatable");
-
-        if (!table) {
-          console.error("Submissions table not found!");
-          return;
-        }
-
-        // Locate the first row of submissions (excluding header row)
-        const firstRow = table.querySelector("tr[data-submission-id]");
-        if (!firstRow) {
-          console.log("No submissions found.");
-          return;
-        }
-
-        // Extract the problem link and verdict
-        const problemLink = firstRow.querySelector("a[href*='/problem/']");
-        const verdictElement = firstRow.querySelector(".status-verdict-cell .verdict-accepted");
-
-        // Check if the problem matches the target and the verdict is "Accepted"
-        if (
-          problemLink &&
-          problemLink.getAttribute("href").includes(`/problem/${problemId.slice(-1)}`) && // Match problem letter
-          problemLink.getAttribute("href").includes(`/contest/${problemId.slice(0, -1)}`) && // Match contest ID
-          verdictElement
-        ) {
-          sendAlert(`${myId} (the challenge creator) has solved the problem ${problemId} in room ID: ${roomId}!`);
-          alertSent = true; // Mark alert as sent
-        }
-      })
-      .catch((err) => console.error("Error fetching submissions:", err));
-  }, 3000); // Check every 30 seconds
 }
+
+// Monitor Alerts
+function monitorChallengeAlerts() {
+  const challengeDetails = JSON.parse(localStorage.getItem("activeChallenge"));
+  if (!challengeDetails) return;
+
+  const { startTime, endTime, roomId } = challengeDetails;
+  const currentTime = Date.now();
+
+  // Check and set the start alert
+  if (currentTime < startTime) {
+    const timeUntilStart = startTime - currentTime;
+    console.log(`Time until start: ${timeUntilStart}ms`);
+    setTimeout(() => {
+      alert(`Your contest with room ID: ${roomId} has started!`);
+      monitorOngoingContest(startTime, endTime, roomId); // Monitor ongoing status
+    }, timeUntilStart);
+  } else if (currentTime >= startTime && currentTime < endTime) {
+    alert(`Your contest with room ID: ${roomId} is already in progress!`);
+    monitorOngoingContest(startTime, endTime, roomId); // Continue monitoring
+  }
+
+  // Check and set the end alert
+  if (currentTime < endTime) {
+    const timeUntilEnd = endTime - currentTime;
+    console.log(`Time until end: ${timeUntilEnd}ms`);
+    setTimeout(() => {
+      alert(`Your contest with room ID: ${roomId} has ended!`);
+      // Clear the challenge details after the contest ends
+      localStorage.removeItem("activeChallenge");
+    }, timeUntilEnd);
+  } else {
+    alert(`The contest with room ID: ${roomId} has already ended!`);
+    localStorage.removeItem("activeChallenge");
+  }
+}
+
+// Monitor Ongoing Contest
+function monitorOngoingContest(startTime, endTime, roomId) {
+  const currentTime = Date.now();
+  if (currentTime >= startTime && currentTime < endTime) {
+    console.log(`Contest in progress for room ID: ${roomId}`);
+    setTimeout(() => monitorOngoingContest(startTime, endTime, roomId), 1000); // Poll every second
+  }
+}
+
+// Run the monitorChallengeAlerts function on page load
+monitorChallengeAlerts();
+
+
+
 
 // Initialize
 addChallengeButton();
