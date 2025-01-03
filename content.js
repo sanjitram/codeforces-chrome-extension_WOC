@@ -1,6 +1,6 @@
 console.log("content.js loaded!");
 
-// Add Challenge Button
+// Add Challenge and Join Buttons
 function addChallengeButton() {
   const button = document.createElement("button");
   button.innerText = "Challenge a Friend";
@@ -11,7 +11,6 @@ function addChallengeButton() {
   document.body.appendChild(button);
   console.log("Challenge button added!");
 
-  // Add 'Join Challenge' Button
   const joinButton = document.createElement("button");
   joinButton.innerText = "Join Challenge";
   joinButton.style.cssText =
@@ -20,6 +19,15 @@ function addChallengeButton() {
   joinButton.addEventListener("click", joinChallenge);
   document.body.appendChild(joinButton);
   console.log("Join button added!");
+
+  const timerDiv = document.createElement("div");
+  timerDiv.id = "countdown-timer";
+  timerDiv.style.cssText =
+    "position: fixed; top: 90px; right: 10px; padding: 10px; background: #2ecc71; color: #fff; border-radius: 5px; display: none; font-size: 16px;";
+  document.body.appendChild(timerDiv);
+  console.log("Countdown timer added!");
+
+  restoreState();
 }
 
 // Generate Room ID
@@ -39,11 +47,6 @@ function timeToMilliseconds(timeStr) {
   const now = new Date();
   now.setHours(hours, minutes, seconds, 0);
   return now.getTime();
-}
-
-// Send Alert
-function sendAlert(message) {
-  alert(message);
 }
 
 // Create Challenge
@@ -73,23 +76,76 @@ function createChallenge() {
   };
 
   localStorage.setItem("challengeDetails", JSON.stringify(challengeDetails));
+  localStorage.setItem("activeChallenge", JSON.stringify(challengeDetails));
   alert(`Challenge created! Room ID: ${roomId}`);
 
-  monitorContestStart(startTime, roomId);
-  monitorFriendProgress(friendId, problemId, roomId);
+  monitorContestStart(startTime, endTime, roomId);
+  monitorFriendProgress(friendId, problemId, roomId); // Monitor friend's progress
+  monitorFriendProgress(myId, problemId, roomId);    // Monitor host's progress
   monitorContestEnd(endTime, roomId);
+  restoreState();
+}
+
+// Join Challenge
+function joinChallenge() {
+  const roomId = prompt("Enter the Room ID:");
+  const roomIdPattern = /^\d+[A-Za-z]_\d{13}_\d{13}_[\w\d]+_[\w\d]+$/;
+
+  if (!roomIdPattern.test(roomId)) {
+    alert("Invalid Room ID format. Please enter a valid Room ID.");
+    return;
+  }
+
+  const [problemId, startTime, endTime, friendId, myId] = roomId.split('_');
+  const challengeDetails = {
+    roomId,
+    problemId,
+    startTime: parseInt(startTime),
+    endTime: parseInt(endTime),
+    friendId,
+    myId,
+  };
+
+  localStorage.setItem("activeChallenge", JSON.stringify(challengeDetails));
+  window.location.href = `https://codeforces.com/problemset/problem/${problemId.slice(0, -1)}/${problemId.slice(-1)}`;
 }
 
 // Monitor Contest Start
-function monitorContestStart(startTime, roomId) {
+function monitorContestStart(startTime, endTime, roomId) {
   if (Date.now() < startTime) {
     const interval = setInterval(() => {
       if (Date.now() >= startTime) {
         sendAlert(`Your contest with room ID: ${roomId} has started!`);
+        startCountdown(endTime);
         clearInterval(interval);
       }
     }, 1000);
   }
+}
+
+// Start Countdown Timer
+function startCountdown(endTime) {
+  const timerDiv = document.getElementById("countdown-timer");
+  timerDiv.style.display = "block";
+
+  const updateTimer = () => {
+    const currentTime = Date.now();
+    const timeLeft = endTime - currentTime;
+
+    if (timeLeft <= 0) {
+      timerDiv.innerText = "Contest has ended!";
+      timerDiv.style.background = "#e74c3c";
+      clearInterval(timerInterval);
+    } else {
+      const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+      const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+      timerDiv.innerText = `Time left: ${hours}h ${minutes}m ${seconds}s`;
+    }
+  };
+
+  updateTimer();
+  const timerInterval = setInterval(updateTimer, 1000);
 }
 
 // Monitor Friend Progress
@@ -143,51 +199,26 @@ function monitorContestEnd(endTime, roomId) {
   }
 }
 
-// Join Challenge
-function joinChallenge() {
-  const roomId = prompt("Enter the Room ID:");
-  const roomIdPattern = /^\d+[A-Za-z]_\d{13}_\d{13}_[\w\d]+_[\w\d]+$/;
+// Restore State After Reload
+function restoreState() {
+  const activeChallenge = JSON.parse(localStorage.getItem("activeChallenge"));
+  if (activeChallenge) {
+    const { startTime, endTime } = activeChallenge;
+    const currentTime = Date.now();
 
-  if (!roomIdPattern.test(roomId)) {
-    alert("Invalid Room ID format. Please enter a valid Room ID.");
-    return;
+    if (currentTime < startTime) {
+      monitorContestStart(startTime, endTime, activeChallenge.roomId);
+    } else if (currentTime >= startTime && currentTime <= endTime) {
+      startCountdown(endTime);
+    }
   }
-
-  const [problemId, startTime, endTime, friendId, myId] = roomId.split('_');
-  const challengeDetails = {
-    roomId,
-    problemId,
-    startTime: parseInt(startTime),
-    endTime: parseInt(endTime),
-    friendId,
-    myId,
-  };
-
-  localStorage.setItem("activeChallenge", JSON.stringify(challengeDetails));
-  window.location.href = `https://codeforces.com/problemset/problem/${problemId.slice(0, -1)}/${problemId.slice(-1)}`;
 }
 
-// Monitor Alerts
-function monitorChallengeAlerts() {
-  const challengeDetails = JSON.parse(localStorage.getItem("activeChallenge"));
-  if (!challengeDetails) return;
-
-  const { startTime, endTime, roomId } = challengeDetails;
-
-  if (Date.now() < startTime) {
-    setTimeout(() => {
-      alert(`Your contest with room ID: ${roomId} has started!`);
-    }, startTime - Date.now());
-  }
-
-  if (Date.now() < endTime) {
-    setTimeout(() => {
-      alert(`Your contest with room ID: ${roomId} has ended!`);
-      localStorage.removeItem("activeChallenge");
-    }, endTime - Date.now());
-  }
+// Send Alert
+function sendAlert(message) {
+  alert(message);
 }
 
 // Initialize
 addChallengeButton();
-monitorChallengeAlerts();
+restoreState();
