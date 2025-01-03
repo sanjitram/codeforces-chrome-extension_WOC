@@ -30,6 +30,18 @@ function addChallengeButton() {
   restoreState();
 }
 
+function sendNotification(message) {
+  if (Notification.permission === "granted") {
+    new Notification(message);
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission().then(permission => {
+      if (permission === "granted") {
+        new Notification(message);
+      }
+    });
+  }
+}
+
 // Generate Room ID
 function generateRoomId(problemId, startTime, endTime, friendId, myId) {
   return `${problemId}_${startTime}_${endTime}_${friendId}_${myId}`;
@@ -179,7 +191,7 @@ function monitorFriendProgress(friendId, problemId, roomId) {
           problemLink.getAttribute("href").includes(`/contest/${problemId.slice(0, -1)}`) &&
           verdictElement
         ) {
-          sendAlert(`${friendId} has solved the problem ${problemId} in room ID: ${roomId}!`);
+          sendNotification(`${friendId} has solved the problem ${problemId} in room ID: ${roomId}!`);
           alertSent = true;
         }
       })
