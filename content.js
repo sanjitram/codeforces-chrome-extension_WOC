@@ -9,7 +9,7 @@ function addChallengeButton() {
 
   button.addEventListener("click", createChallenge);
   document.body.appendChild(button);
-  console.log("Challenge button added!");
+  console.log("Challenge button ");
 
   const joinButton = document.createElement("button");
   joinButton.innerText = "Join Challenge";
@@ -18,14 +18,14 @@ function addChallengeButton() {
 
   joinButton.addEventListener("click", joinChallenge);
   document.body.appendChild(joinButton);
-  console.log("Join button added!");
+  console.log("blahblah1");
 
   const timerDiv = document.createElement("div");
   timerDiv.id = "countdown-timer";
   timerDiv.style.cssText =
     "position: fixed; top: 90px; right: 10px; padding: 10px; background: #2ecc71; color: #fff; border-radius: 5px; display: none; font-size: 16px;";
   document.body.appendChild(timerDiv);
-  console.log("Countdown timer added!");
+  console.log("blahblah");
 
   restoreState();
 }
