@@ -1,6 +1,6 @@
-console.log("content.js loaded!");
 
-// Add Challenge and Join Buttons
+console.log("blahblah");
+
 function addChallengeButton() {
   const button = document.createElement("button");
   button.innerText = "Challenge a Friend";
@@ -42,12 +42,12 @@ function sendNotification(message) {
   }
 }
 
-// Generate Room ID
+
 function generateRoomId(problemId, startTime, endTime, friendId, myId) {
   return `${problemId}_${startTime}_${endTime}_${friendId}_${myId}`;
 }
 
-// Convert hh:mm:ss format to milliseconds
+
 function timeToMilliseconds(timeStr) {
   const [hours, minutes, seconds] = timeStr.split(":").map(Number);
 
@@ -61,7 +61,7 @@ function timeToMilliseconds(timeStr) {
   return now.getTime();
 }
 
-// Create Challenge
+
 function createChallenge() {
   const problemId = prompt("Enter the problem ID (e.g., 1234A):");
   const friendId = prompt("Enter your friend's Codeforces handle:");
@@ -92,13 +92,13 @@ function createChallenge() {
   alert(`Challenge created! Room ID: ${roomId}`);
 
   monitorContestStart(startTime, endTime, roomId);
-  monitorFriendProgress(friendId, problemId, roomId); // Monitor friend's progress
-  monitorFriendProgress(myId, problemId, roomId);    // Monitor host's progress
+  monitorFriendProgress(friendId, problemId, roomId); 
+  monitorFriendProgress(myId, problemId, roomId);   
   monitorContestEnd(endTime, roomId);
   restoreState();
 }
 
-// Join Challenge
+
 function joinChallenge() {
   const roomId = prompt("Enter the Room ID:");
   const roomIdPattern = /^\d+[A-Za-z]_\d{13}_\d{13}_[\w\d]+_[\w\d]+$/;
@@ -122,7 +122,7 @@ function joinChallenge() {
   window.location.href = `https://codeforces.com/problemset/problem/${problemId.slice(0, -1)}/${problemId.slice(-1)}`;
 }
 
-// Monitor Contest Start
+
 function monitorContestStart(startTime, endTime, roomId) {
   if (Date.now() < startTime) {
     const interval = setInterval(() => {
@@ -135,7 +135,7 @@ function monitorContestStart(startTime, endTime, roomId) {
   }
 }
 
-// Start Countdown Timer
+
 function startCountdown(endTime) {
   const timerDiv = document.getElementById("countdown-timer");
   timerDiv.style.display = "block";
@@ -160,7 +160,7 @@ function startCountdown(endTime) {
   const timerInterval = setInterval(updateTimer, 1000);
 }
 
-// Monitor Friend Progress
+
 function monitorFriendProgress(friendId, problemId, roomId) {
   const submissionsUrl = `https://codeforces.com/submissions/${friendId}`;
   let alertSent = false;
@@ -199,7 +199,7 @@ function monitorFriendProgress(friendId, problemId, roomId) {
   }, 3000);
 }
 
-// Monitor Contest End
+
 function monitorContestEnd(endTime, roomId) {
   if (Date.now() < endTime) {
     const interval = setInterval(() => {
@@ -211,7 +211,7 @@ function monitorContestEnd(endTime, roomId) {
   }
 }
 
-// Restore State After Reload
+
 function restoreState() {
   const activeChallenge = JSON.parse(localStorage.getItem("activeChallenge"));
   if (activeChallenge) {
@@ -226,11 +226,11 @@ function restoreState() {
   }
 }
 
-// Send Alert
+
 function sendAlert(message) {
   alert(message);
 }
 
-// Initialize
+
 addChallengeButton();
 restoreState();
