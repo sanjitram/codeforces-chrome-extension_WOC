@@ -1,4 +1,5 @@
 console.log("blah");
+const activeIntervals = {};
 
 
 function addChallengeButton() {
@@ -127,6 +128,7 @@ function joinChallenge() {
 }
 
 
+
 function monitorContestStart(startTime, endTime, roomId) {
   if (Date.now() < startTime) {
     const interval = setInterval(() => {
@@ -164,14 +166,19 @@ function startCountdown(endTime) {
   const timerInterval = setInterval(updateTimer, 1000);
 }
 
+function monitorFriendProgress(userId, problemId, roomId) {
+  const submissionsUrl = `https://codeforces.com/submissions/${userId}`;
+  const solvedProblems = {}; 
 
-function monitorFriendProgress(friendId, problemId, roomId) {
-  const submissionsUrl = `https://codeforces.com/submissions/${friendId}`;
-  let alertSent = false;
+  if (!solvedProblems[userId]) {
+    solvedProblems[userId] = new Set(); 
+  }
 
-  const intervalId = setInterval(() => {
-    if (alertSent) {
-      clearInterval(intervalId);
+  const interval = setInterval(() => {
+    
+    if (solvedProblems[userId].has(problemId)) {
+      clearInterval(interval);
+      delete activeIntervals[`progress_${userId}_${problemId}`]; 
       return;
     }
 
@@ -195,13 +202,22 @@ function monitorFriendProgress(friendId, problemId, roomId) {
           problemLink.getAttribute("href").includes(`/contest/${problemId.slice(0, -1)}`) &&
           verdictElement
         ) {
-          sendAlert(`${friendId} has solved the problem ${problemId} in room ID: ${roomId}!`);
-          alertSent = true;
+          
+          solvedProblems[userId].add(problemId);
+          sendAlert(`${userId} has solved the problem ${problemId} in room ID: ${roomId}!`);
+
+          
+          clearInterval(interval);
+          delete activeIntervals[`progress_${userId}_${problemId}`]; 
         }
       })
       .catch((err) => console.error("Error fetching submissions:", err));
   }, 3000);
+
+  
+  activeIntervals[`progress_${userId}_${problemId}`] = interval;
 }
+
 
 
 function monitorContestEnd(endTime, roomId) {
@@ -240,7 +256,7 @@ function restoreState() {
       monitorContestEnd(endTime, roomId);
     }
 
-
+    
     monitorFriendProgress(myId, problemId, roomId);     
     monitorFriendProgress(friendId, problemId, roomId); 
   } else {
@@ -252,6 +268,7 @@ function restoreState() {
 function sendAlert(message) {
   alert(message);
 }
+
 
 addChallengeButton();
 restoreState();
