@@ -1,7 +1,6 @@
 console.log("blah");
 const activeIntervals = {};
 
-
 function addChallengeButton() {
   const button = document.createElement("button");
   button.innerText = "Challenge a Friend";
@@ -31,11 +30,10 @@ function addChallengeButton() {
   restoreState();
 }
 
-
 function generateRoomId(problemId, startTime, endTime, friendId, myId) {
-  return `${problemId}_${startTime}_${endTime}_${friendId}_${myId}`;
+  const randomNumber = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
+  return `${problemId}_${startTime}_${endTime}_${friendId}_${myId}_${randomNumber}`;
 }
-
 
 function timeToMilliseconds(timeStr) {
   const [hours, minutes, seconds] = timeStr.split(":").map(Number);
@@ -49,7 +47,6 @@ function timeToMilliseconds(timeStr) {
   now.setHours(hours, minutes, seconds, 0);
   return now.getTime();
 }
-
 
 function createChallenge() {
   const problemId = prompt("Enter the problem ID (e.g., 1234A):");
@@ -82,14 +79,13 @@ function createChallenge() {
 
   monitorContestStart(startTime, endTime, roomId);
   monitorFriendProgress(friendId, problemId, roomId);
-  
   monitorContestEnd(endTime, roomId);
   restoreState();
 }
 
 function joinChallenge() {
   const roomId = prompt("Enter the Room ID:");
-  const roomIdPattern = /^\d+[A-Za-z]_\d{13}_\d{13}_[\w\d]+_[\w\d]+$/;
+  const roomIdPattern = /^\d+[A-Za-z]_\d{13}_\d{13}_[\w\d]+_[\w\d]+_\d{4}$/;
 
   if (!roomIdPattern.test(roomId)) {
     alert("Invalid Room ID format. Please enter a valid Room ID.");
@@ -97,12 +93,12 @@ function joinChallenge() {
   }
 
   const roomIdParts = roomId.split('_');
-  if (roomIdParts.length !== 5) {
+  if (roomIdParts.length !== 6) {
     alert("Invalid Room ID format. Room ID is incomplete.");
     return;
   }
 
-  const [problemId, startTime, endTime, friendId, myId] = roomIdParts;
+  const [problemId, startTime, endTime, friendId, myId, randomNumber] = roomIdParts;
   const challengeDetails = {
     roomId,
     problemId,
@@ -110,23 +106,20 @@ function joinChallenge() {
     endTime: parseInt(endTime),
     friendId,
     myId,
+    randomNumber,
   };
 
   localStorage.setItem("activeChallenge", JSON.stringify(challengeDetails));
   alert(`Challenge joined! Room ID: ${roomId}`);
 
-  
   monitorContestStart(challengeDetails.startTime, challengeDetails.endTime, roomId);
   monitorFriendProgress(myId, problemId, roomId);
   monitorContestEnd(challengeDetails.endTime, roomId);
 
-  
   restoreState();
 
-  
   window.location.href = `https://codeforces.com/problemset/problem/${problemId.slice(0, -1)}/${problemId.slice(-1)}`;
 }
-
 
 
 function monitorContestStart(startTime, endTime, roomId) {
