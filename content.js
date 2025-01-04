@@ -1,5 +1,5 @@
+console.log("blah");
 
-console.log("blahblah");
 
 function addChallengeButton() {
   const button = document.createElement("button");
@@ -9,7 +9,7 @@ function addChallengeButton() {
 
   button.addEventListener("click", createChallenge);
   document.body.appendChild(button);
-  console.log("Challenge button ");
+  console.log("Challenge button added!");
 
   const joinButton = document.createElement("button");
   joinButton.innerText = "Join Challenge";
@@ -18,28 +18,16 @@ function addChallengeButton() {
 
   joinButton.addEventListener("click", joinChallenge);
   document.body.appendChild(joinButton);
-  console.log("blahblah1");
+  console.log("Join button added!");
 
   const timerDiv = document.createElement("div");
   timerDiv.id = "countdown-timer";
   timerDiv.style.cssText =
     "position: fixed; top: 90px; right: 10px; padding: 10px; background: #2ecc71; color: #fff; border-radius: 5px; display: none; font-size: 16px;";
   document.body.appendChild(timerDiv);
-  console.log("blahblah");
+  console.log("Countdown timer added!");
 
   restoreState();
-}
-
-function sendNotification(message) {
-  if (Notification.permission === "granted") {
-    new Notification(message);
-  } else if (Notification.permission !== "denied") {
-    Notification.requestPermission().then(permission => {
-      if (permission === "granted") {
-        new Notification(message);
-      }
-    });
-  }
 }
 
 
@@ -92,12 +80,11 @@ function createChallenge() {
   alert(`Challenge created! Room ID: ${roomId}`);
 
   monitorContestStart(startTime, endTime, roomId);
-  monitorFriendProgress(friendId, problemId, roomId); 
-  monitorFriendProgress(myId, problemId, roomId);   
+  monitorFriendProgress(friendId, problemId, roomId);
+  
   monitorContestEnd(endTime, roomId);
   restoreState();
 }
-
 
 function joinChallenge() {
   const roomId = prompt("Enter the Room ID:");
@@ -108,7 +95,13 @@ function joinChallenge() {
     return;
   }
 
-  const [problemId, startTime, endTime, friendId, myId] = roomId.split('_');
+  const roomIdParts = roomId.split('_');
+  if (roomIdParts.length !== 5) {
+    alert("Invalid Room ID format. Room ID is incomplete.");
+    return;
+  }
+
+  const [problemId, startTime, endTime, friendId, myId] = roomIdParts;
   const challengeDetails = {
     roomId,
     problemId,
@@ -119,6 +112,17 @@ function joinChallenge() {
   };
 
   localStorage.setItem("activeChallenge", JSON.stringify(challengeDetails));
+  alert(`Challenge joined! Room ID: ${roomId}`);
+
+  
+  monitorContestStart(challengeDetails.startTime, challengeDetails.endTime, roomId);
+  monitorFriendProgress(myId, problemId, roomId);
+  monitorContestEnd(challengeDetails.endTime, roomId);
+
+  
+  restoreState();
+
+  
   window.location.href = `https://codeforces.com/problemset/problem/${problemId.slice(0, -1)}/${problemId.slice(-1)}`;
 }
 
@@ -191,7 +195,7 @@ function monitorFriendProgress(friendId, problemId, roomId) {
           problemLink.getAttribute("href").includes(`/contest/${problemId.slice(0, -1)}`) &&
           verdictElement
         ) {
-          sendNotification(`${friendId} has solved the problem ${problemId} in room ID: ${roomId}!`);
+          sendAlert(`${friendId} has solved the problem ${problemId} in room ID: ${roomId}!`);
           alertSent = true;
         }
       })
@@ -214,15 +218,33 @@ function monitorContestEnd(endTime, roomId) {
 
 function restoreState() {
   const activeChallenge = JSON.parse(localStorage.getItem("activeChallenge"));
+
   if (activeChallenge) {
-    const { startTime, endTime } = activeChallenge;
+    const { startTime, endTime, roomId, problemId, myId, friendId } = activeChallenge;
+
+    
+    if (!startTime || !endTime || !roomId || !problemId || !myId || !friendId) {
+      console.error("Incomplete challenge data in localStorage. Resetting state.");
+      localStorage.removeItem("activeChallenge");
+      return;
+    }
+
     const currentTime = Date.now();
 
     if (currentTime < startTime) {
-      monitorContestStart(startTime, endTime, activeChallenge.roomId);
+      
+      monitorContestStart(startTime, endTime, roomId);
     } else if (currentTime >= startTime && currentTime <= endTime) {
+      
       startCountdown(endTime);
+      monitorContestEnd(endTime, roomId);
     }
+
+
+    monitorFriendProgress(myId, problemId, roomId);     
+    monitorFriendProgress(friendId, problemId, roomId); 
+  } else {
+    console.log("No active challenge to restore.");
   }
 }
 
@@ -230,7 +252,6 @@ function restoreState() {
 function sendAlert(message) {
   alert(message);
 }
-
 
 addChallengeButton();
 restoreState();
