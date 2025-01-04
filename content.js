@@ -1,5 +1,31 @@
 console.log("blah");
 const activeIntervals = {};
+const solvedProblems = {}; 
+
+function sendNotification(title, message) {
+  
+  if (!("Notification" in window)) {
+    console.error("This browser does not support desktop notifications.");
+    return;
+  }
+
+  
+  if (Notification.permission === "granted") {
+    
+    new Notification(title, { body: message });
+  }
+
+  
+  else if (Notification.permission !== "denied") {
+    Notification.requestPermission().then((permission) => {
+    
+      if (permission === "granted") {
+        new Notification(title, { body: message });
+      }
+    });
+  }
+}
+
 
 function addChallengeButton() {
   const button = document.createElement("button");
@@ -31,7 +57,7 @@ function addChallengeButton() {
 }
 
 function generateRoomId(problemId, startTime, endTime, friendId, myId) {
-  const randomNumber = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
+  const randomNumber = Math.floor(1000 + Math.random() * 9000); 
   return `${problemId}_${startTime}_${endTime}_${friendId}_${myId}_${randomNumber}`;
 }
 
@@ -161,17 +187,19 @@ function startCountdown(endTime) {
 
 function monitorFriendProgress(userId, problemId, roomId) {
   const submissionsUrl = `https://codeforces.com/submissions/${userId}`;
-  const solvedProblems = {}; 
 
   if (!solvedProblems[userId]) {
     solvedProblems[userId] = new Set(); 
   }
 
+  if (activeIntervals[`progress_${userId}_${problemId}`]) {
+    return; 
+  }
+
   const interval = setInterval(() => {
-    
     if (solvedProblems[userId].has(problemId)) {
       clearInterval(interval);
-      delete activeIntervals[`progress_${userId}_${problemId}`]; 
+      delete activeIntervals[`progress_${userId}_${problemId}`];
       return;
     }
 
@@ -195,33 +223,33 @@ function monitorFriendProgress(userId, problemId, roomId) {
           problemLink.getAttribute("href").includes(`/contest/${problemId.slice(0, -1)}`) &&
           verdictElement
         ) {
-          
           solvedProblems[userId].add(problemId);
           sendAlert(`${userId} has solved the problem ${problemId} in room ID: ${roomId}!`);
 
-          
           clearInterval(interval);
-          delete activeIntervals[`progress_${userId}_${problemId}`]; 
+          delete activeIntervals[`progress_${userId}_${problemId}`];
         }
       })
       .catch((err) => console.error("Error fetching submissions:", err));
   }, 3000);
 
-  
   activeIntervals[`progress_${userId}_${problemId}`] = interval;
 }
-
-
-
 function monitorContestEnd(endTime, roomId) {
-  if (Date.now() < endTime) {
-    const interval = setInterval(() => {
-      if (Date.now() >= endTime) {
-        sendAlert(`The contest with room ID: ${roomId} has ended!`);
-        clearInterval(interval);
+  const interval = setInterval(() => {
+    const currentTime = Date.now();
+    
+    if (currentTime >= endTime) {
+      clearInterval(interval);
+      sendNotification(`The contest with room ID: ${roomId} has ended!`);
+      
+      
+      const timerDiv = document.getElementById("countdown-timer");
+      if (timerDiv) {
+        timerDiv.style.display = "none";
       }
-    }, 1000);
-  }
+    }
+  }, 1000);
 }
 
 
@@ -231,7 +259,6 @@ function restoreState() {
   if (activeChallenge) {
     const { startTime, endTime, roomId, problemId, myId, friendId } = activeChallenge;
 
-    
     if (!startTime || !endTime || !roomId || !problemId || !myId || !friendId) {
       console.error("Incomplete challenge data in localStorage. Resetting state.");
       localStorage.removeItem("activeChallenge");
@@ -241,17 +268,19 @@ function restoreState() {
     const currentTime = Date.now();
 
     if (currentTime < startTime) {
-      
       monitorContestStart(startTime, endTime, roomId);
     } else if (currentTime >= startTime && currentTime <= endTime) {
-      
       startCountdown(endTime);
       monitorContestEnd(endTime, roomId);
     }
 
     
-    monitorFriendProgress(myId, problemId, roomId);     
-    monitorFriendProgress(friendId, problemId, roomId); 
+    if (!activeIntervals[`progress_${myId}_${problemId}`]) {
+      monitorFriendProgress(myId, problemId, roomId);
+    }
+    if (!activeIntervals[`progress_${friendId}_${problemId}`]) {
+      monitorFriendProgress(friendId, problemId, roomId);
+    }
   } else {
     console.log("No active challenge to restore.");
   }
