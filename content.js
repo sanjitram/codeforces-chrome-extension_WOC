@@ -1,6 +1,27 @@
 console.log("blah");
 const activeIntervals = {};
 const solvedProblems = {}; 
+function copyToClipboard(text) {
+  
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert("Text copied to clipboard!");
+    }).catch((err) => {
+      console.error("Failed to copy text: ", err);
+    });
+  } else {
+    
+    alert("Clipboard API not available. Please copy manually.");
+  }
+}
+
+function base64Encode(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+function base64Decode(str) {
+  return decodeURIComponent(escape(atob(str)));
+}
 
 function sendNotification(title, message) {
   
@@ -58,7 +79,8 @@ function addChallengeButton() {
 
 function generateRoomId(problemId, startTime, endTime, friendId, myId) {
   const randomNumber = Math.floor(1000 + Math.random() * 9000); 
-  return `${problemId}_${startTime}_${endTime}_${friendId}_${myId}_${randomNumber}`;
+  const plainRoomId = `${problemId}_${startTime}_${endTime}_${friendId}_${myId}_${randomNumber}`;
+  return base64Encode(plainRoomId);  
 }
 
 function timeToMilliseconds(timeStr) {
@@ -101,7 +123,10 @@ function createChallenge() {
 
   localStorage.setItem("challengeDetails", JSON.stringify(challengeDetails));
   localStorage.setItem("activeChallenge", JSON.stringify(challengeDetails));
-  alert(`Challenge created! Room ID: ${roomId}`);
+  copyToClipboard(roomId);
+  alert(`Challenge created! Room ID: ${roomId} copied to clipboard....`);
+  
+  window.location.href = `https://codeforces.com/problemset/problem/${problemId.slice(0, -1)}/${problemId.slice(-1)}`;
 
   monitorContestStart(startTime, endTime, roomId);
   monitorFriendProgress(friendId, problemId, roomId);
@@ -110,42 +135,49 @@ function createChallenge() {
 }
 
 function joinChallenge() {
-  const roomId = prompt("Enter the Room ID:");
-  const roomIdPattern = /^\d+[A-Za-z]_\d{13}_\d{13}_[\w\d]+_[\w\d]+_\d{4}$/;
+  const encryptedRoomId = prompt("Enter the Room ID:");
+  
+  try {
+    const roomId = base64Decode(encryptedRoomId);  
+    const roomIdPattern = /^\d+[A-Za-z]_\d{13}_\d{13}_[\w\d]+_[\w\d]+_\d{4}$/;
 
-  if (!roomIdPattern.test(roomId)) {
-    alert("Invalid Room ID format. Please enter a valid Room ID.");
-    return;
+    if (!roomIdPattern.test(roomId)) {
+      alert("Invalid Room ID format. Please enter a valid Room ID.");
+      return;
+    }
+
+    const roomIdParts = roomId.split('_');
+    if (roomIdParts.length !== 6) {
+      alert("Invalid Room ID format. Room ID is incomplete.");
+      return;
+    }
+
+    const [problemId, startTime, endTime, friendId, myId, randomNumber] = roomIdParts;
+    const challengeDetails = {
+      roomId: encryptedRoomId,  
+      problemId,
+      startTime: parseInt(startTime),
+      endTime: parseInt(endTime),
+      friendId,
+      myId,
+      randomNumber,
+    };
+
+    localStorage.setItem("activeChallenge", JSON.stringify(challengeDetails));
+    alert(`Challenge joined! Room ID: ${encryptedRoomId}`);
+
+    monitorContestStart(challengeDetails.startTime, challengeDetails.endTime, roomId);
+    monitorFriendProgress(myId, problemId, roomId);
+    monitorContestEnd(challengeDetails.endTime, roomId);
+
+    restoreState();
+
+    window.location.href = `https://codeforces.com/problemset/problem/${problemId.slice(0, -1)}/${problemId.slice(-1)}`;
+  } catch (error) {
+    alert("Invalid Room ID. Please enter a valid encrypted Room ID.");
   }
-
-  const roomIdParts = roomId.split('_');
-  if (roomIdParts.length !== 6) {
-    alert("Invalid Room ID format. Room ID is incomplete.");
-    return;
-  }
-
-  const [problemId, startTime, endTime, friendId, myId, randomNumber] = roomIdParts;
-  const challengeDetails = {
-    roomId,
-    problemId,
-    startTime: parseInt(startTime),
-    endTime: parseInt(endTime),
-    friendId,
-    myId,
-    randomNumber,
-  };
-
-  localStorage.setItem("activeChallenge", JSON.stringify(challengeDetails));
-  alert(`Challenge joined! Room ID: ${roomId}`);
-
-  monitorContestStart(challengeDetails.startTime, challengeDetails.endTime, roomId);
-  monitorFriendProgress(myId, problemId, roomId);
-  monitorContestEnd(challengeDetails.endTime, roomId);
-
-  restoreState();
-
-  window.location.href = `https://codeforces.com/problemset/problem/${problemId.slice(0, -1)}/${problemId.slice(-1)}`;
 }
+
 
 
 function monitorContestStart(startTime, endTime, roomId) {
@@ -231,7 +263,7 @@ function monitorFriendProgress(userId, problemId, roomId) {
         }
       })
       .catch((err) => console.error("Error fetching submissions:", err));
-  }, 3000);
+  }, 20000);
 
   activeIntervals[`progress_${userId}_${problemId}`] = interval;
 }
@@ -241,7 +273,7 @@ function monitorContestEnd(endTime, roomId) {
     
     if (currentTime >= endTime) {
       clearInterval(interval);
-      sendNotification(`The contest with room ID: ${roomId} has ended!`);
+      sendAlert(`The contest with room ID: ${roomId} has ended!`);
       
       
       const timerDiv = document.getElementById("countdown-timer");
