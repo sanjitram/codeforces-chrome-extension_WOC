@@ -2,7 +2,7 @@ console.log("blah");
 const activeIntervals = {};
 const solvedProblems = {}; 
 function copyToClipboard(text) {
-  
+  //clipboard stuff
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(() => {
       alert("Text copied to clipboard!");
@@ -11,22 +11,22 @@ function copyToClipboard(text) {
     });
   } else {
     
-    alert("Clipboard API not available. Please copy manually.");
+    alert("Clipboard API not available.");
   }
 }
 
 function base64Encode(str) {
-  return btoa(unescape(encodeURIComponent(str)));
+  return btoa(str);
 }
 
 function base64Decode(str) {
-  return decodeURIComponent(escape(atob(str)));
+  return atob(str);
 }
 
 function sendNotification(title, message) {
   
   if (!("Notification" in window)) {
-    console.error("This browser does not support desktop notifications.");
+    console.error("browser does not support desktop notifications.");
     return;
   }
 
@@ -70,7 +70,7 @@ function addChallengeButton() {
   const timerDiv = document.createElement("div");
   timerDiv.id = "countdown-timer";
   timerDiv.style.cssText =
-    "position: fixed; top: 90px; right: 10px; padding: 10px; background: #2ecc71; color: #fff; border-radius: 5px; display: none; font-size: 16px;";
+    "position: fixed; top: 90px; right: 10px; padding: 10px; background: #2ecc71; color: #fff; border-radius: 5px; display: none; font-size: 12px;";
   document.body.appendChild(timerDiv);
   console.log("Countdown timer added!");
 
@@ -138,7 +138,7 @@ function joinChallenge() {
   const encryptedRoomId = prompt("Enter the Room ID:");
   
   try {
-    const roomId = base64Decode(encryptedRoomId);  
+    const roomId = base64Decode(encryptedRoomId);  // Decrypting
     const roomIdPattern = /^\d+[A-Za-z]_\d{13}_\d{13}_[\w\d]+_[\w\d]+_\d{4}$/;
 
     if (!roomIdPattern.test(roomId)) {
@@ -184,7 +184,7 @@ function monitorContestStart(startTime, endTime, roomId) {
   if (Date.now() < startTime) {
     const interval = setInterval(() => {
       if (Date.now() >= startTime) {
-        sendAlert(`Your contest with room ID: ${roomId} has started!`);
+        alert(`Your contest with room ID: ${roomId} has started!`);
         startCountdown(endTime);
         clearInterval(interval);
       }
@@ -217,16 +217,27 @@ function startCountdown(endTime) {
   const timerInterval = setInterval(updateTimer, 1000);
 }
 
+// Mod
 function monitorFriendProgress(userId, problemId, roomId) {
   const submissionsUrl = `https://codeforces.com/submissions/${userId}`;
+
 
   if (!solvedProblems[userId]) {
     solvedProblems[userId] = new Set(); 
   }
 
-  if (activeIntervals[`progress_${userId}_${problemId}`]) {
-    return; 
+  
+  if (solvedProblems[userId].has(problemId)) {
+    return;
   }
+
+
+  if (activeIntervals[`progress_${userId}_${problemId}`]) {
+    return;
+  }
+
+  
+  let lastProcessedSubmissionId = null;
 
   const interval = setInterval(() => {
     if (solvedProblems[userId].has(problemId)) {
@@ -246,6 +257,15 @@ function monitorFriendProgress(userId, problemId, roomId) {
         const firstRow = table.querySelector("tr[data-submission-id]");
         if (!firstRow) return;
 
+        const submissionId = firstRow.getAttribute("data-submission-id");
+        
+        // Skip
+        if (submissionId === lastProcessedSubmissionId) {
+          return;
+        }
+        
+        lastProcessedSubmissionId = submissionId;
+
         const problemLink = firstRow.querySelector("a[href*='/problem/']");
         const verdictElement = firstRow.querySelector(".status-verdict-cell .verdict-accepted");
 
@@ -253,9 +273,11 @@ function monitorFriendProgress(userId, problemId, roomId) {
           problemLink &&
           problemLink.getAttribute("href").includes(`/problem/${problemId.slice(-1)}`) &&
           problemLink.getAttribute("href").includes(`/contest/${problemId.slice(0, -1)}`) &&
-          verdictElement
+          verdictElement &&
+          !solvedProblems[userId].has(problemId) 
         ) {
           solvedProblems[userId].add(problemId);
+         
           sendAlert(`${userId} has solved the problem ${problemId} in room ID: ${roomId}!`);
 
           clearInterval(interval);
