@@ -262,7 +262,7 @@ function monitorFriendProgress(userId, problemId, roomId) {
         }
       })
       .catch((err) => console.error("Error fetching submissions:", err));
-  }, 20000);
+  }, 5000);
 
   activeIntervals[`progress_${userId}_${problemId}`] = interval;
 }
