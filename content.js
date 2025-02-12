@@ -2,7 +2,7 @@ console.log("blah");
 const activeIntervals = {};
 const solvedProblems = {}; 
 function copyToClipboard(text) {
-  //clipboard stuff
+  //clipboard stuff.
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(() => {
       alert("Text copied to clipboard!");
